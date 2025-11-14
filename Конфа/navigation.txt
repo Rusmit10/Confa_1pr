@@ -1,0 +1,7 @@
+# Навигация по файловой системе
+cd /usr/bin
+conf-dump
+cd /var/log
+conf-dump
+cd /
+conf-dump

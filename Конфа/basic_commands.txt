@@ -1,0 +1,6 @@
+# Базовые команды VFS
+ls
+cd /home
+conf-dump
+cd /tmp
+ls

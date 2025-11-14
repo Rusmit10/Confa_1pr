@@ -40,14 +40,17 @@ class VFSEmulator:
             return self.cd_command(args, original_input)
         elif command == "conf-dump":
             return self.conf_dump_command(args, original_input)
+        elif command == "run-script":
+            return self.run_script_command(args, original_input)
+        elif command == "list-scripts":
+            return self.list_scripts_command(args, original_input)
         else:
             print(f"{command}: команда не найдена")
             return False
 
     def exit_command(self, args, original_input):
-        # Проверяем количество аргументов в исходной строке
         original_parts = original_input.strip().split()
-        if len(original_parts) > 2:  # команда + максимум 1 аргумент
+        if len(original_parts) > 2:
             print("exit: слишком много аргументов")
             return False
 
@@ -63,9 +66,8 @@ class VFSEmulator:
         return True
 
     def ls_command(self, args, original_input):
-        # Проверяем количество аргументов в исходной строке
         original_parts = original_input.strip().split()
-        if len(original_parts) > 1:  # только команда, без аргументов
+        if len(original_parts) > 1:
             print("ls: слишком много аргументов")
             return False
 
@@ -73,9 +75,8 @@ class VFSEmulator:
         return True
 
     def cd_command(self, args, original_input):
-        # Проверяем количество аргументов в исходной строке
         original_parts = original_input.strip().split()
-        if len(original_parts) > 2:  # команда + максимум 1 аргумент
+        if len(original_parts) > 2:
             print("cd: слишком много аргументов")
             return False
 
@@ -85,9 +86,8 @@ class VFSEmulator:
         return True
 
     def conf_dump_command(self, args, original_input):
-        # Проверяем количество аргументов в исходной строке
         original_parts = original_input.strip().split()
-        if len(original_parts) > 1:  # только команда, без аргументов
+        if len(original_parts) > 1:
             print("conf-dump: слишком много аргументов")
             return False
 
@@ -97,19 +97,57 @@ class VFSEmulator:
         print(f"  current_path: {self.current_path}")
         return True
 
-    def execute_startup_script(self):
-        if not self.startup_script:
-            return True
-
-        if not os.path.exists(self.startup_script):
-            print(f"Ошибка: скрипт '{self.startup_script}' не найден")
+    def list_scripts_command(self, args, original_input):
+        """Показать доступные скрипты"""
+        original_parts = original_input.strip().split()
+        if len(original_parts) > 1:
+            print("list-scripts: слишком много аргументов")
             return False
 
-        print(f"Выполнение скрипта: {self.startup_script}")
+        print("Доступные скрипты (*.txt):")
+        print("-" * 30)
+
+        scripts = [f for f in os.listdir('.') if f.endswith('.txt')]
+        if scripts:
+            for script in scripts:
+                print(f"  {script}")
+        else:
+            print("  Скрипты не найдены")
+            print("  Создайте .txt файлы с командами в этой папке")
+
+        print("-" * 30)
+        return True
+
+    def run_script_command(self, args, original_input):
+        """Выполнение скрипта из txt файла"""
+        original_parts = original_input.strip().split()
+        if len(original_parts) > 2:
+            print("run-script: слишком много аргументов")
+            return False
+
+        if len(args) == 0:
+            print("run-script: укажите имя скрипта")
+            print("Используйте 'list-scripts' чтобы увидеть доступные скрипты")
+            return False
+
+        script_file = args[0]
+        if not script_file.endswith('.txt'):
+            script_file += '.txt'
+
+        return self.execute_script_file(script_file)
+
+    def execute_script_file(self, script_file):
+        """Выполнение команд из txt файла"""
+        if not os.path.exists(script_file):
+            print(f"Ошибка: скрипт '{script_file}' не найден")
+            print("Используйте 'list-scripts' чтобы увидеть доступные скрипты")
+            return False
+
+        print(f"Выполнение скрипта: {script_file}")
         print("-" * 40)
 
         try:
-            with open(self.startup_script, 'r') as f:
+            with open(script_file, 'r', encoding='utf-8') as f:
                 for line_num, line in enumerate(f, 1):
                     line = line.strip()
                     if not line or line.startswith('#'):
@@ -118,23 +156,40 @@ class VFSEmulator:
                     print(f"{self.vfs_name}:{self.current_path}$ {line}")
                     command, args = self.parse_input(line)
 
-                    if command and not self.execute_command(command, args, line):
-                        print(f"Ошибка в строке {line_num}")
-                        return False
+                    if command:
+                        if not self.execute_command(command, args, line):
+                            print(f"Ошибка в строке {line_num}")
+                            return False
                     print()
 
             print("-" * 40)
+            print(f"Скрипт '{script_file}' выполнен успешно")
             return True
 
         except Exception as e:
-            print(f"Ошибка: {e}")
+            print(f"Ошибка выполнения скрипта: {e}")
             return False
+
+    def execute_startup_script(self):
+        if not self.startup_script:
+            return True
+
+        if not self.startup_script.endswith('.txt'):
+            self.startup_script += '.txt'
+
+        if not os.path.exists(self.startup_script):
+            print(f"Ошибка: стартовый скрипт '{self.startup_script}' не найден")
+            return False
+
+        return self.execute_script_file(self.startup_script)
 
     def run(self):
         if self.startup_script and not self.execute_startup_script():
             return
 
-        print("Эмулятор VFS. Команды: ls, cd, conf-dump, exit")
+        print("Эмулятор VFS. Команды: ls, cd, conf-dump, run-script, list-scripts, exit")
+        print("Используйте 'list-scripts' чтобы увидеть доступные .txt скрипты")
+        print("Используйте 'run-script имя_файла' для запуска скрипта")
         print("-" * 40)
 
         while self.running:
@@ -157,73 +212,31 @@ class VFSEmulator:
                 print(f"Ошибка: {e}")
 
 
-def create_test_scripts():
-    """Создает 3 коротких тестовых скрипта"""
-    scripts = {
-        'test1.vfs': '''# Простой тест
-ls
-cd /home
-conf-dump
-ls -la''',
-
-        'test2.vfs': '''# Тест с ошибкой
-ls
-cd too many args
-ls "arg1 arg2"''',
-
-        'test3.vfs': '''# Тест conf-dump
-conf-dump
-cd /tmp
-conf-dump
-exit'''
-    }
-
-    for filename, content in scripts.items():
-        with open(filename, 'w') as f:
-            f.write(content)
-        print(f"Создан: {filename}")
-
-
-def run_quick_demo():
-    """Быстрая демонстрация"""
-    print("=== БЫСТРАЯ ДЕМОНСТРАЦИЯ ===")
-
-    # Создаем скрипты
-    create_test_scripts()
-
-    # Тест 1
-    print("\n1. Тест со скриптом:")
-    emulator = VFSEmulator(vfs_path="/demo", startup_script="test1.vfs")
-    emulator.run()
-
-    # Тест 2
-    print("\n2. Тест с ошибкой:")
-    emulator = VFSEmulator(startup_script="test2.vfs")
-    emulator.run()
-
-    # Тест 3
-    print("\n3. Интерактивный режим:")
-    emulator = VFSEmulator(vfs_path="/final")
-    emulator.run()
-
-
 def main():
     parser = argparse.ArgumentParser(description='Эмулятор VFS')
     parser.add_argument('--vfs-path', help='Путь к VFS')
-    parser.add_argument('--startup-script', help='Стартовый скрипт')
-    parser.add_argument('--create-scripts', action='store_true',
-                        help='Создать тестовые скрипты')
-    parser.add_argument('--demo', action='store_true',
-                        help='Запустить демонстрацию')
+    parser.add_argument('--startup-script', help='Стартовый скрипт (txt файл)')
+    parser.add_argument('--run-script', help='Запустить конкретный скрипт')
+    parser.add_argument('--list-scripts', action='store_true',
+                        help='Показать доступные скрипты')
 
     args = parser.parse_args()
 
-    if args.create_scripts:
-        create_test_scripts()
+    if args.list_scripts:
+        scripts = [f for f in os.listdir('.') if f.endswith('.txt')]
+        print("Доступные скрипты (*.txt):")
+        print("-" * 30)
+        if scripts:
+            for script in scripts:
+                print(f"  {script}")
+        else:
+            print("  Скрипты не найдены")
+            print("  Создайте .txt файлы с командами в этой папке")
         return
 
-    if args.demo:
-        run_quick_demo()
+    if args.run_script:
+        emulator = VFSEmulator(vfs_path=args.vfs_path)
+        emulator.execute_script_file(args.run_script)
         return
 
     emulator = VFSEmulator(

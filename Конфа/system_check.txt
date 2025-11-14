@@ -1,0 +1,6 @@
+# Проверка системы
+conf-dump
+ls
+cd /etc
+conf-dump
+ls
